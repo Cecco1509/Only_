@@ -86,7 +86,7 @@ func Login(c *gin.Context) {
 	}
 
 	var user Models.User
-	err = Models.GetUser(&user, req.Username)
+	err = Models.GetUserByUsername(&user, req.Username)
 
 	if err != nil {
 		ApiHelpers.RespondJSON(c, 404, err.Error())
@@ -131,7 +131,7 @@ func Register(c *gin.Context) {
 	}
 
 	var user Models.User
-	err = Models.GetUser(&user, req.Username)
+	err = Models.GetUserByUsername(&user, req.Username)
 
 	if err == nil {
 		ApiHelpers.RespondJSON(c, 400, "User already exists")
@@ -199,5 +199,13 @@ func VerifyToken(c *gin.Context) {
 		"username": decodedToken.Claims.(jwt.MapClaims)["username"],
 	}
 
-	ApiHelpers.RespondJSON(c, 200, decodedClaims)
+	var user Models.User
+	userId := decodedClaims["userid"].(float64)
+	err = Models.GetUserByUserId(&user, int(userId))
+
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 404, "User not found")
+	}
+
+	ApiHelpers.RespondJSON(c, 200, user)
 }

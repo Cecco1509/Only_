@@ -22,8 +22,15 @@ func CreateUser(u *User) (err error) {
 	return nil
 }
 
-func GetUser(u *User, username string) (err error) {
+func GetUserByUsername(u *User, username string) (err error) {
 	if err := Config.DB.Where("USERNAME = ?", username).First(u).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func GetUserByUserId(u *User, id int) (err error) {
+	if err := Config.DB.Where("ID = ?", id).First(u).Error; err != nil {
 		return err
 	}
 	return nil
