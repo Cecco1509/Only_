@@ -4,6 +4,7 @@ import (
 	"archivemicroservice/ApiHelpers"
 	"archivemicroservice/Controllers"
 	"archivemicroservice/Models"
+	"crypto/tls"
 	"encoding/json"
 	"net/http"
 
@@ -12,7 +13,10 @@ import (
 
 func SecureRoute() gin.HandlerFunc {
     return gin.HandlerFunc(func(c *gin.Context) {
-		req, err := http.NewRequest("GET", "http://authmicroservice:5000/verify", nil)
+		
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+
+		req, err := http.NewRequest("GET", "https://authservice:5000/verify", nil)
 		if err != nil {
 			ApiHelpers.RespondJSON(c, 500, "Error creating validate request")
 			return

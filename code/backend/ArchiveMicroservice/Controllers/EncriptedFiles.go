@@ -16,13 +16,13 @@ func StoreEncryptedFile(c *gin.Context) {
 
 	user := c.MustGet("userInfo").(Models.User)
 	
-	var sentObj Models.EncryptedFile
+	var sentObj ApiHelpers.StoreFileRequest
 	c.BindJSON(&sentObj)
 
 	if sentObj.FILENAME != "" {
 		var search Models.EncryptedFile
 		err := Models.GetFileByFilename(&search, sentObj.FILENAME)
-		if err != nil {
+		if err == nil {
 			ApiHelpers.RespondJSON(c, 400, "File Name already used already exists")
 			return
 		}

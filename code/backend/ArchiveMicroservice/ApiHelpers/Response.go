@@ -10,6 +10,13 @@ type ResponseData struct {
 	Data   interface{}
 }
 
+type StoreFileRequest struct {
+	FILENAME  string `json:"filename"`
+	SALT      string `json:"salt"`
+	IV        string `json:"iv"`
+	EXTENSION string `json:"extension"`
+}
+
 func RespondJSON(w *gin.Context, status int, payload interface{}) {
 	//fmt.Println("status ", status)
 	var res ResponseData

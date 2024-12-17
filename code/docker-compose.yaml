@@ -12,6 +12,9 @@ services:
     depends_on:
       authdb:
         condition: service_healthy
+    secrets:
+      - auth_cert
+      - auth_key
     networks:
       - backend
 
@@ -28,6 +31,9 @@ services:
     depends_on:
       archivedb:
         condition: service_healthy
+    secrets:
+      - archive_cert
+      - archive_key
     networks:
       - backend
 
@@ -85,3 +91,13 @@ networks:
   backend:
     name: backend-network
     driver: bridge
+
+secrets:
+  auth_cert:
+    file: ./secrets/auth_cert.pem
+  auth_key:
+    file: ./secrets/auth_key.pem
+  archive_cert:
+    file: ./secrets/archive_cert.pem
+  archive_key:
+    file: ./secrets/archive_key.pem

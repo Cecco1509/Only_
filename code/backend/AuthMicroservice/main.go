@@ -37,5 +37,5 @@ func main() {
 
 	r := Routers.SetupRouter()
 	// running
-	r.Run()
+	r.RunTLS(":5000", "/run/secrets/auth_cert", "/run/secrets/auth_key")
 }
