@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<title>File Input Logger</title>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"></script>
+	</head>
+	<body id="root">
+		<input type="file" id="fileInput" />
+		<button id="sendButton">Send</button>
+		<div id="req_res"></div>
+		<div id="result"></div>
+		<div style="display: flex" id="container"></div>
+		<input type="text" name="password" id="password" />
+
+		<script>
+						const INPUT = document.getElementById('fileInput');
+						const MAX_WIDTH = 1920;
+						const MAX_HEIGHT = 1080;
+						var compressedBlob;
+
+						INPUT.onchange = function (event) {
+							const file = event.target.files[0]; // get the file
+							const blobURL = URL.createObjectURL(file);
+							const img = new Image();
+							img.src = blobURL;
+
+							img.onload = function () {
+								const [newWidth, newHeight] = calculateSize(img, MAX_WIDTH, MAX_HEIGHT);
+								const canvas = document.createElement('canvas');
+								canvas.width = newWidth;
+								canvas.height = newHeight;
+								const ctx = canvas.getContext('2d');
+								ctx.drawImage(img, 0, 0, newWidth, newHeight);
+								canvas.toBlob((blob) => {
+									// Handle the compressed image.
+									blob.text().then((text) => {
+										console.log(text);
+										compressedBlob = text;
+									});
+									const displayTag = document.createElement('h1');
+									displayTag.innerText = `Original Image - ${readableBytes(file.size)} :::::: Compressed Image - ${readableBytes(blob.size)}`;
+									document.getElementById('result').append(displayTag);
+									document.getElementById('container').appendChild(canvas);
+									img.maxWidth = MAX_WIDTH;
+									img.height = MAX_HEIGHT;
+									img.style.objectFit = 'contain';
+									img.title = 'Original Image';
+									document.getElementById('container').appendChild(img);
+								});
+							};
+						};
+
+						function calculateSize(img, maxWidth, maxHeight) {
+							let width = img.width;
+							let height = img.height;
+
+							// calculate the width and height, constraining the proportions
+							if (width > height) {
+								if (width > maxWidth) {
+									height = Math.round((height * maxWidth) / width);
+									width = maxWidth;
+								}
+							} else {
+								if (height > maxHeight) {
+									width = Math.round((width * maxHeight) / height);
+									height = maxHeight;
+								}
+							}
+							return [width, height];
+						}
+
+						function readableBytes(bytes) {
+							const i = Math.floor(Math.log(bytes) / Math.log(1024)),
+								sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+
+							return (bytes / Math.pow(1024, i)).toFixed(2) + ' ' + sizes[i];
+						}
+
+						document.getElementById('sendButton').addEventListener('click', () => {
+							const enc = new TextEncoder();
+							encoded = enc.encode(compressedBlob);
+
+							return crypto.subtle // 16 caratteri pefforza password
+								.importKey('raw', enc.encode('abcdefghijklmnop'), 'AES-GCM', false, [
+									'encrypt',
+									'decrypt'
+								])
+								.then((key) => {
+									const iv = crypto.getRandomValues(new Uint8Array(12));
+									return crypto.subtle
+										.encrypt(
+											{
+												name: 'AES-GCM',
+												iv: iv
+											},
+											key,
+											encoded
+										)
+										.then((encrypted) => {
+											const encryptedArray = new Uint8Array(encrypted);
+											let binary = '';
+											encryptedArray.forEach((byte) => (binary += String.fromCharCode(byte)));
+											const encryptedBase64 = window.btoa(binary);
+											compressedBlob = encryptedBase64;
+											console.log('Encrypted Blob: ', compressedBlob);
+
+											token =
+												'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyaWQiOjEsInVzZXJuYW1lIjoicGlwcG8iLCJleHAiOjE3MzQ1NTUyMzcsImlhdCI6MTczNDQ2ODgzN30.QPCQb5S2naE1kg9-9rc9BgWtXDEURCUJQTDOlZgHPgc';
+
+											fetch('https://localhost:5002/efile', {
+												method: 'POST',
+												headers: {
+													'Content-Type': 'application/json',
+													Authorization: 'Bearer ' + token
+												},
+			xx									body: JSON.stringify({
+													filename: 'compress' + Math.random() * 10000,
+													salt: 'salt',
+													iv: 'iv',
+													extension: 'jpeg',
+													enc_data: compressedBlob
+												})
+											})
+												.then((response) => response.json())
+												.then((data) => {
+													console.log('Success:', data);
+													document.getElementById('req_res').innerText = 'File sent successfully';
+												})
+												.catch((error) => {
+													console.error('Error:', error);
+													document.getElementById('req_res').innerText = 'Error sending file' + error;
+												});
+										});
+								});
+						});
+		</script>
+	</body>
+</html>

@@ -1,6 +1,8 @@
 package ApiHelpers
 
 import (
+	"fmt"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -15,6 +17,7 @@ type StoreFileRequest struct {
 	SALT      string `json:"salt"`
 	IV        string `json:"iv"`
 	EXTENSION string `json:"extension"`
+	ENC_DATA  string `json:"enc_data"`
 }
 
 func RespondJSON(w *gin.Context, status int, payload interface{}) {
@@ -25,5 +28,6 @@ func RespondJSON(w *gin.Context, status int, payload interface{}) {
 	//res.Meta = utils.ResponseMessage(status)
 	res.Data = payload
 
+	fmt.Printf("set status %d", status)
 	w.JSON(status, res)
 }

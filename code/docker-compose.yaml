@@ -1,5 +1,5 @@
 services:
-  authmicroservice:
+  authservice:
     build:
       context: ./backend/AuthMicroservice
       dockerfile: dockerfile
@@ -18,7 +18,7 @@ services:
     networks:
       - backend
 
-  archivemicroservice:
+  archiveservice:
     build:
       context: ./backend/ArchiveMicroservice
       dockerfile: dockerfile
@@ -36,6 +36,8 @@ services:
       - archive_key
     networks:
       - backend
+    volumes:
+      - ./backend/ArchiveMicroservice/Storage:/Storage
 
   authdb:
     image: postgres:14.5
