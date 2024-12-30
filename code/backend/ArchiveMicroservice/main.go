@@ -34,6 +34,7 @@ func main() {
 		fmt.Println("statuse: ", err)
 	}
 	Config.DB.AutoMigrate(&Models.EncryptedFile{})
+	Config.DB.AutoMigrate(&Models.Shared{})
 
 	r := Routers.SetupRouter()
 	// running

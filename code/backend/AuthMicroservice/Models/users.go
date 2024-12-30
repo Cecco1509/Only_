@@ -46,3 +46,10 @@ func DeleteUser(u *User, id string) (err error) {
 	Config.DB.Where("id = ?", id).Delete(u)
 	return nil
 }
+
+func SearchUsers(u *[]User, search string) (err error) {
+	if err = Config.DB.Where("username LIKE ?", "%"+search+"%").Find(u).Error; err != nil {
+		return err
+	}
+	return nil
+}

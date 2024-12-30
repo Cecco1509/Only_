@@ -26,6 +26,7 @@ type AuthRequest struct {
 
 type AuthResponse struct {
 	Token string `json:"token"`
+	ExpiresAt int64 `json:"expiresAt"`
 }
 
 type RegisterResponse struct {

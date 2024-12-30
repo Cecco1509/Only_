@@ -18,17 +18,24 @@ type UserClaims struct {
 	jwt.RegisteredClaims
 }
 
+type SearchUser struct {
+	Username string `json:"username"`
+	Id 	 uint   `json:"id"`
+}
+
 var invalidTokens = []string{}
 
 var secretKey = []byte("secret-key")
 
-func createToken(username string, userid uint) (string, error) {
+func createToken(username string, userid uint) (string, *jwt.NumericDate, error) {
+
+	expiresAt := jwt.NewNumericDate(time.Now().Add(time.Hour * 24))
 
 	claims := UserClaims{
 		Userid: userid,
 		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+			ExpiresAt: expiresAt,
 			IssuedAt: jwt.NewNumericDate(time.Now()),
 		},
 	}
@@ -37,10 +44,10 @@ func createToken(username string, userid uint) (string, error) {
 
     tokenString, err := token.SignedString(secretKey)
     if err != nil {
-    return "", err
+    return "", nil, err
     }
 
- 	return tokenString, nil
+ 	return tokenString, expiresAt, nil
 }
 
 func verifyToken(tokenString string) (*jwt.Token, error) {
@@ -85,6 +92,8 @@ func Login(c *gin.Context) {
 		return
 	}
 
+	fmt.Println("requested login : ", req.Username)
+
 	var user Models.User
 	err = Models.GetUserByUsername(&user, req.Username)
 
@@ -108,7 +117,7 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	token, err := createToken(user.USERNAME, user.ID)
+	token, exp, err := createToken(user.USERNAME, user.ID)
 
 	if err != nil {
 		ApiHelpers.RespondJSON(c, 500, err.Error())
@@ -117,6 +126,7 @@ func Login(c *gin.Context) {
 
 	var resp ApiHelpers.AuthResponse
 	resp.Token = token
+	resp.ExpiresAt = exp.Time.Unix()
 
 	ApiHelpers.RespondJSON(c, 200, resp)
 }
@@ -203,9 +213,56 @@ func VerifyToken(c *gin.Context) {
 	userId := decodedClaims["userid"].(float64)
 	err = Models.GetUserByUserId(&user, int(userId))
 
+	fmt.Println("user : ", user)
+
 	if err != nil {
 		ApiHelpers.RespondJSON(c, 404, "User not found")
 	}
 
 	ApiHelpers.RespondJSON(c, 200, user)
+}
+
+
+func GetUserInfo( c *gin.Context) {
+	username := c.Param("username")
+
+	var user Models.User
+	err := Models.GetUserByUsername(&user, username)
+
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 404, "User not found")
+		return
+	}
+
+	fmt.Println("user : ", user)
+
+	ApiHelpers.RespondJSON(c, 200, user)
+}
+
+func SearchUsers( c *gin.Context) {
+	search := c.Query("search")
+
+	fmt.Println("search : ", search)
+
+	if len(search) < 3 { 
+		ApiHelpers.RespondJSON(c, 400, "Search string must be at least 3 characters")
+		return
+	}
+
+	var users []Models.User
+	err := Models.SearchUsers(&users, search)
+
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 404, "No users found")
+		return
+	}
+
+	searchUsers := make([]SearchUser, len(users))
+
+	for i := 0; i < len(users); i++ {
+		searchUsers[i].Username = users[i].USERNAME
+		searchUsers[i].Id = users[i].ID
+	}
+
+	ApiHelpers.RespondJSON(c, 200, searchUsers)
 }

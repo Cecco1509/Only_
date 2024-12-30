@@ -3,9 +3,13 @@ package Controllers
 import (
 	"archivemicroservice/ApiHelpers"
 	"archivemicroservice/Models"
+	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -15,7 +19,7 @@ import (
 
 func StoreEncryptedFile(c *gin.Context) {
 
-	user := c.MustGet("userInfo").(Models.User)
+	user := c.MustGet("userInfo").(ApiHelpers.User)
 	
 	var sentObj ApiHelpers.StoreFileRequest
 	err := c.BindJSON(&sentObj)
@@ -38,18 +42,19 @@ func StoreEncryptedFile(c *gin.Context) {
 		sentObj.FILENAME = "IMG_" + strconv.Itoa(int(time.Now().Unix()))
 	}
 
-	if !checkExt(sentObj.EXTENSION) {
+	res, ext := checkExt(sentObj.EXTENSION)
+
+	if !res {
 		ApiHelpers.RespondJSON(c, 400, "Invalid extension")
 		return
 	}
 
+	fmt.Println("user: ", user)
+
 	ef := Models.EncryptedFile{
 		FILENAME:    sentObj.FILENAME,
 		USER_ID:     user.ID,
-		CREATION_DT: time.Now(),
-		SALT:        sentObj.SALT,
-		IV:          sentObj.IV,
-		EXTENSION:   sentObj.EXTENSION,
+		EXTENSION:   ext,
 	}
 
 	err = Models.CreateFile(&ef)
@@ -64,6 +69,7 @@ func StoreEncryptedFile(c *gin.Context) {
 		return
 	}
 	
+	fmt.Println("ef: ", ef)
 	ApiHelpers.RespondJSON(c, 200, ef)
 }
 
@@ -85,20 +91,24 @@ func createFile(filename string, enc_data string) bool {
 	return true
 }
 
-func checkExt(s string) bool {
+func checkExt(s string) (bool, string) {
+	ext := strings.Split(s, "/")[1]
+	switch ext {
+		case "jpg", "jpeg", "png", "webp":
+			return true, ext
+	}
 	switch s {
 	case "jpg", "jpeg", "png", "webp":
-		return true
+		return true, s
 	}
-	return false
+	return false, ""
 }
 
 // GET A ncryptedFile
 
 func GetEncryptedFile(c *gin.Context) {
 
-	//var user Models.User
-	//user = c.MustGet("userInfo").(Models.User)
+	user := c.MustGet("userInfo").(ApiHelpers.User)
 
 	strId := c.Params.ByName("id")
 	var ef Models.EncryptedFile
@@ -108,9 +118,14 @@ func GetEncryptedFile(c *gin.Context) {
 		return
 	}
 
-	err = Models.GetFile(&ef, id)
+	err = Models.GetFile(&ef, uint(id))
 	if err != nil {
-		ApiHelpers.RespondJSON(c, 404, ef)
+		ApiHelpers.RespondJSON(c, 404, "File not found")
+		return
+	}
+
+	if ef.USER_ID != user.ID {
+		ApiHelpers.RespondJSON(c, 403, "Unauthorized")
 		return
 	}
 
@@ -118,6 +133,148 @@ func GetEncryptedFile(c *gin.Context) {
 	Models.UpdateFile(&ef, ef.ID)
 	ApiHelpers.RespondJSON(c, 200, ef)
 	
+}
+
+func GetUsersEncryptedFiles(c *gin.Context) {
+
+	user := c.MustGet("userInfo").(ApiHelpers.User)
+
+	var ef []Models.EncryptedFile
+	err := Models.GetUsersFiles(&ef, user.ID)
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 404, ef)
+		return
+	}
+
+	fmt.Println(ef)
+
+	ApiHelpers.RespondJSON(c, 200, ef)
+}
+
+func GetStoredFile(c *gin.Context) {
+	
+	filename := c.Params.ByName("filename")
+	file, err := os.Open("/Storage/" + filename)
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 404, "File not found")
+		return
+	}
+
+	defer file.Close()
+
+	fileInfo, _ := file.Stat()
+	var size int64 = fileInfo.Size()
+	bytes := make([]byte, size)
+
+	_, err = file.Read(bytes)
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 500, "Error reading file")
+		return
+	}
+
+	c.Writer.WriteString(string(bytes))
+}
+
+func ShareEncryptedFile(c *gin.Context) {
+	user := c.MustGet("userInfo").(ApiHelpers.User)
+
+	var sharedFileReq ApiHelpers.ShareFileRequest
+	err := c.BindJSON(&sharedFileReq)
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 400, err.Error())
+		return
+	}
+
+	http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+
+	userInfoReq, err := http.NewRequest("GET", "https://authservice:5000/userinfo/"+sharedFileReq.USERNAME, nil)
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 500, "Error creating validate request")
+		return
+	}
+	userInfoReq.Header.Set("Authorization", c.Request.Header.Get("Authorization"))
+
+	res, err := http.DefaultClient.Do(userInfoReq)
+
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 500, "Error validating token")
+		return
+	}
+
+	if res.StatusCode != 200 {
+		ApiHelpers.RespondJSON(c, res.StatusCode, "Error validating token")
+		return
+	}
+
+	var body ApiHelpers.VerifyResponseData
+	err = json.NewDecoder(res.Body).Decode(&body);
+
+	fmt.Println("body: ", body)
+
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 500, "Error decoding user")
+		return
+	}
+
+	shareWith := body.Data
+
+	var ef Models.EncryptedFile
+	err = Models.GetFile(&ef, sharedFileReq.FILE_ID)
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 404, "File not found")
+		return
+	}
+
+	if ef.USER_ID != user.ID {
+		ApiHelpers.RespondJSON(c, 401, "Unauthorized")
+		return
+	}
+
+	var checkShared Models.Shared
+	err = Models.GetShared(&checkShared, ef.ID, user.ID, shareWith.ID)
+
+	if err == nil {
+		ApiHelpers.RespondJSON(c, 400, "Cannot share twice")
+		return
+	}
+
+	var shared Models.Shared
+	shared.FILE_ID = ef.ID
+	shared.SHARED_BY_USER_ID = user.ID
+	shared.SHARED_WITH_USERNAME = shareWith.USERNAME
+	shared.SHARED_WITH_USER_ID = shareWith.ID
+	shared.SHARED_BY_USERNAME = user.USERNAME
+
+	err = Models.CreateShared(&shared)
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 500, "Error sharing file")
+		return
+	}
+
+	ApiHelpers.RespondJSON(c, 200, shared)
+}
+
+func DeleteStoredFile(c *gin.Context) {
+	filename := c.Params.ByName("filename")
+
+	var ef Models.EncryptedFile
+	err := Models.DeleteFileByFilename(&ef, filename)
+
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 500, "Error deleting file")
+		return
+	}
+
+	var shared []Models.Shared
+	err = Models.DeleteShares(&shared, ef.ID)
+
+	err = os.Remove("/Storage/" + filename)
+	if err != nil {
+		ApiHelpers.RespondJSON(c, 500, "Error deleting file")
+		return
+	}
+
+	ApiHelpers.RespondJSON(c, 200, "File deleted")
 }
 
 // DELETE A ncryptedFile

@@ -15,6 +15,13 @@ func GetAllFiles(ef *[]EncryptedFile) (err error) {
 	return nil
 }
 
+func GetUsersFiles(ef *[]EncryptedFile, id uint) (err error) {
+	if err = Config.DB.Where("USER_ID = ?", id).Find(ef).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
 func CreateFile(ef *EncryptedFile) (err error) {
 	if err = Config.DB.Create(ef).Error; err != nil {
 		return err
@@ -22,7 +29,7 @@ func CreateFile(ef *EncryptedFile) (err error) {
 	return nil
 }
 
-func GetFile(ef *EncryptedFile, id int) (err error) {
+func GetFile(ef *EncryptedFile, id uint) (err error) {
 	if err := Config.DB.Where("ID = ?", id).First(ef).Error; err != nil {
 		return err
 	}
@@ -42,7 +49,12 @@ func UpdateFile(ef *EncryptedFile, id uint) (err error) {
 	return nil
 }
 
-func DeleteUser(ef *EncryptedFile, id uint) (err error) {
+func DeleteFile(ef *EncryptedFile, id uint) (err error) {
 	Config.DB.Where("id = ?", id).Delete(ef)
+	return nil
+}
+
+func DeleteFileByFilename(ef *EncryptedFile, filename string) (err error) {
+	Config.DB.Where("filename = ?", filename).Delete(ef)
 	return nil
 }

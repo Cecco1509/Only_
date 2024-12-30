@@ -7,29 +7,29 @@ import (
 )
 
 type EncryptedFile struct {
-	gorm.Model `json:"-"`
   ID uint `gorm:"primaryKey autoIncrement" json:"id"` 
-  CREATION_DT time.Time `gorm:"default:now()" json:"creation_dt"`
-  LAST_RETREIVED_DT time.Time `gorm:"default:null" json:"last_login_dt"`
-  LAST_UPDATE_DT time.Time `gorm:"default:null" json:"last_update_dt"`
+  CREATED_AT time.Time `gorm:"default:now()" json:"creation_dt"`
+  LAST_RETREIVED_DT time.Time `gorm:"default:null" json:"last_retrieved_dt"`
+  UPDATE_AT time.Time `gorm:"default:null" json:"update_dt"`
   FILENAME string `json:"filename" gorm:"unique"`
-  SALT string `json:"salt"`
-  IV string `json:"iv"`
   EXTENSION string `json:"extension"`
   USER_ID uint `json:"user_id"`
 }
 
-type User struct {
-  ID uint `json:"id"`
-  REGISTRATION_DT time.Time `json:"registration_dt"`
-  LAST_LOGIN_DT time.Time `json:"last_login_dt"` 
-  USERNAME string `json:"username"`
-  EMAIL string `json:"email"`
-  FIRSTNAME string `json:"firstname"`
-  LASTNAME string `json:"lastname"`
+type Shared struct {
+  gorm.Model `json:"-"`
+  FILE_ID uint `json:"file_id"`
+  SHARED_BY_USER_ID uint `json:"shared_by_user_id"`
+  SHARED_BY_USERNAME string `json:"shared_by_username"`
+  SHARED_WITH_USERNAME string `json:"shared_with_username"`
+  SHARED_WITH_USER_ID uint `json:"shared_with_user_id"`
 }
 
 
 func (b *EncryptedFile) TableName() string {
 	return "ENCRYPTED_FILE"
+}
+
+func (b *Shared) TableName() string {
+  return "SHARED"
 }

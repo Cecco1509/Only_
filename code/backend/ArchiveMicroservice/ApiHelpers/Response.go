@@ -12,12 +12,21 @@ type ResponseData struct {
 	Data   interface{}
 }
 
+type VerifyResponseData struct {
+	Status int
+	Meta   interface{}
+	Data   User
+}
+
 type StoreFileRequest struct {
 	FILENAME  string `json:"filename"`
-	SALT      string `json:"salt"`
-	IV        string `json:"iv"`
 	EXTENSION string `json:"extension"`
 	ENC_DATA  string `json:"enc_data"`
+}
+
+type ShareFileRequest struct {
+	FILE_ID uint `json:"file_id"`
+	USERNAME string `json:"username"`
 }
 
 func RespondJSON(w *gin.Context, status int, payload interface{}) {
